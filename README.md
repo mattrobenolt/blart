@@ -9,3 +9,11 @@ Watch files/directories for changes, and report to child process.
 ```bash
 $ go get github.com/mattrobenolt/blart
 ```
+
+## Usage
+
+```
+usage: blart [flags] [command]
+  -f="": files and directories to watch, split by ':'
+  -s="HUP": signal to send on change
+```
