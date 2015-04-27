@@ -69,7 +69,13 @@ func usageAndExit(s interface{}) {
 	os.Exit(1)
 }
 
+func usage() {
+	fmt.Fprintf(os.Stderr, "usage: blart [flags] [command]\n")
+	flag.PrintDefaults()
+}
+
 func init() {
+	flag.Usage = usage
 	flag.Parse()
 }
 
