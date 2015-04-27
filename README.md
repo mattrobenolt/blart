@@ -14,6 +14,7 @@ $ go get github.com/mattrobenolt/blart
 
 ```
 usage: blart [flags] [command]
+  -d=3s: time to wait after change before signalling child
   -f="": files and directories to watch, split by ':'
   -s="HUP": signal to send on change
 ```
