@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 var (
 	filesFlag = flag.String("f", "", "files and directories to watch, split by ':'")
 	sigFlag   = flag.String("s", "HUP", "signal to send on change")
+	delayFlag = flag.Duration("d", 3*time.Second, "time to wait after change before signalling child")
 )
 
 var signals = map[string]os.Signal{
@@ -61,6 +63,31 @@ func signalByName(name string) (sig os.Signal, err error) {
 		err = errors.New(fmt.Sprintf("unknown signal: %s", name))
 	}
 	return
+}
+
+func signalDebounce(process *os.Process, sig os.Signal, delay time.Duration) *sync.Cond {
+	var m sync.Mutex
+	cond := sync.NewCond(&m)
+	cond.L.Lock()
+
+	go func() {
+		// continulously wait for a Broadcast event
+		// then sleep, and pass along the signal to the process
+		// The sleep causes the signals to effectively be debounced.
+		// Note: this isn't a true debounce. We don't want to trigger
+		// immediately on the first event. We explicitly want to wait
+		// _then_ trigger.
+		for {
+			cond.Wait()
+			time.Sleep(delay)
+			if process != nil {
+				log.Println("==> signalling child")
+				process.Signal(sig)
+			}
+		}
+	}()
+
+	return cond
 }
 
 func usageAndExit(s interface{}) {
@@ -128,13 +155,17 @@ func main() {
 	go func() {
 		var event fsnotify.Event
 		var err error
+
+		// Create wrapper to debounce the signal events
+		cond := signalDebounce(cmd.Process, sig, *delayFlag)
+
 		for {
 			select {
 			case event = <-watcher.Events:
 				log.Println("==> detected change in", event.Name)
-				// TODO: add throttle/debounce behavior to prevent a ton
-				// of signals being sent.
-				cmd.Process.Signal(sig)
+				// Broadcase to the sync.Cond that an event has happened.
+				// magic happens inside signalDebounce
+				cond.Broadcast()
 				if event.Op&fsnotify.Rename == fsnotify.Rename {
 					// File was renamed, so remove the old watch,
 					// and add a new one
