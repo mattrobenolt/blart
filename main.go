@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -15,6 +16,8 @@ import (
 
 	"gopkg.in/fsnotify.v1"
 )
+
+const Version = "0.1.0"
 
 var (
 	filesFlag = flag.String("f", "", "files and directories to watch, split by ':'")
@@ -56,8 +59,10 @@ func signalDebounce(process *os.Process, sig os.Signal, delay time.Duration) *sy
 }
 
 func usageAndExit(s interface{}) {
-	fmt.Println(s)
+	fmt.Printf("!! %s\n", s)
 	flag.Usage()
+	fmt.Println()
+	fmt.Printf("%s version: %s (%s on %s/%s; %s)\n", os.Args[0], Version, runtime.Version(), runtime.GOOS, runtime.GOARCH, runtime.Compiler)
 	os.Exit(1)
 }
 
